@@ -4,6 +4,9 @@ Debian 13 `loong64` is used for repeatable Loong64 CI builds and application
 package validation. It is especially useful in GitHub Actions through
 `docker/setup-qemu-action` plus a `linux/loong64` container image.
 
+For the complete verified QEMU build route and the release script behavior, see
+[`VERIFIED_BUILD_ROUTES.md`](VERIFIED_BUILD_ROUTES.md#5-debian-13-qemu容器路线).
+
 ## Purpose
 
 Use Debian 13 QEMU for:
@@ -68,4 +71,3 @@ normally.
 
 This does not mean the SDK release is unusable. It means the app build needed a
 source-level generator compatibility fix for this dependency stack.
-

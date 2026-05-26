@@ -3,6 +3,10 @@
 Old-world UOS 20 class systems need their own Flutter SDK release line. Do not
 use new-world `loong64` binaries on old-world systems.
 
+For the complete verified old-world route, including native GN/Ninja,
+GCC 13.4 + binutils 2.42 final linking, and the old-world patch flow, see
+[`VERIFIED_BUILD_ROUTES.md`](VERIFIED_BUILD_ROUTES.md#6-uos-20-旧世界原生路线).
+
 Use:
 
 ```text

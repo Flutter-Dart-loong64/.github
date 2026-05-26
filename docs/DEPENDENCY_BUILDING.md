@@ -395,9 +395,67 @@ readelf -rW "$out/libflutter_engine.so" | grep R_LARCH_B26 || true
 - GN 输出目录是在切换工具链后重新生成的；
 - 没有设置会指向新世界库的 `LD_LIBRARY_PATH`、`LIBRARY_PATH` 或 `C_INCLUDE_PATH`。
 
-## 4. Chromium depot_tools / Engine 三方依赖
+## 4. GN/Ninja 与 Chromium depot_tools
 
-Flutter Engine 构建需要 Chromium 工具链脚本。`depot_tools` 不需要编译，只需要
+Flutter/Dart 的 LoongArch 构建不能依赖 Google CIPD 预编译 GN/Ninja，因为官方
+Flutter/Dart infra 没有 Loong64 对应工具包。最终成功路线使用目标系统 native
+`gn` 和 `ninja`，再把它们链接到 Dart SDK 与 Flutter Engine 期望的位置。
+
+新世界 UOS 25 / deepin 25 / Debian 13 优先安装发行版包：
+
+```bash
+sudo apt update
+sudo apt install -y generate-ninja ninja-build
+
+export SYSTEM_GN="$(command -v gn)"
+export SYSTEM_NINJA="$(command -v ninja)"
+gn --version
+ninja --version
+```
+
+如果 UOS 系统没有可用的 `generate-ninja` 包，就在目标系统源码编译 GN。这个步骤
+只用于产出 native `gn` 工具，不属于 Flutter SDK 发布包内容：
+
+```bash
+mkdir -p "$WORKSPACE/tools"
+git clone https://gn.googlesource.com/gn "$WORKSPACE/tools/gn-src"
+cd "$WORKSPACE/tools/gn-src"
+
+python3 build/gen.py
+ninja -C out
+
+mkdir -p "$WORKSPACE/tools/gn-bin"
+install -m 0755 out/gn "$WORKSPACE/tools/gn-bin/gn"
+
+export PATH="$WORKSPACE/tools/gn-bin:$PATH"
+export SYSTEM_GN="$(command -v gn)"
+export SYSTEM_NINJA="$(command -v ninja)"
+gn --version
+```
+
+Dart SDK 源码树链接：
+
+```bash
+cd "$WORKSPACE/dart-sdk"
+mkdir -p buildtools/ninja
+ln -sfn "$SYSTEM_GN" buildtools/gn
+ln -sfn "$SYSTEM_NINJA" buildtools/ninja/ninja
+```
+
+Flutter Engine 源码树链接：
+
+```bash
+cd "$WORKSPACE/flutter/engine/src"
+mkdir -p flutter/third_party/gn "$WORKSPACE/flutter/third_party/ninja"
+ln -sfn "$SYSTEM_GN" flutter/third_party/gn/gn
+ln -sfn "$SYSTEM_NINJA" "$WORKSPACE/flutter/third_party/ninja/ninja"
+```
+
+旧世界 UOS 20 同样需要 old-world native `gn` 和 `ninja`。可以使用旧世界系统包，
+也可以在旧世界系统上源码编译 GN；不要把新世界 UOS 25 / Debian 13 的 GN/Ninja
+复制到旧世界使用。
+
+Flutter Engine 构建还需要 Chromium 工具链脚本。`depot_tools` 不需要编译，只需要
 拉取并加入 `PATH`：
 
 ```bash

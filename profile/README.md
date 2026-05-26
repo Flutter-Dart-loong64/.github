@@ -50,6 +50,7 @@ flutter build linux --release --target-platform linux-loong64
 - [项目目标与总体架构](https://github.com/Flutter-Dart-loong64/.github/blob/main/docs/PROJECT_OVERVIEW.md)
 - [仓库关系说明](https://github.com/Flutter-Dart-loong64/.github/blob/main/docs/REPOSITORIES.md)
 - [平台和构建矩阵](https://github.com/Flutter-Dart-loong64/.github/blob/main/docs/PLATFORM_MATRIX.md)
+- [已验证构建路线：UOS 25、UOS 20、Debian 13](https://github.com/Flutter-Dart-loong64/.github/blob/main/docs/VERIFIED_BUILD_ROUTES.md)
 - [从零开始编译：UOS 25、UOS 20、Debian 13](https://github.com/Flutter-Dart-loong64/.github/blob/main/docs/FROM_ZERO_BUILD.md)
 - [依赖源码编译说明](https://github.com/Flutter-Dart-loong64/.github/blob/main/docs/DEPENDENCY_BUILDING.md)
 - [UOS 25 / deepin 25 新世界说明](https://github.com/Flutter-Dart-loong64/.github/blob/main/docs/UOS25_NEW_WORLD.md)

@@ -1,6 +1,7 @@
 # 从零开始编译：UOS 25、UOS 20、Debian 13
 
-本文记录三条从零开始的构建路线：
+本文记录三条从零开始的构建路线。最终已验证的发布路线、GN/Ninja 准备方式和构建期
+临时修补以 [`VERIFIED_BUILD_ROUTES.md`](VERIFIED_BUILD_ROUTES.md) 为准：
 
 - UOS 25 / deepin 25 新世界原生构建；
 - UOS 20 旧世界原生构建；
@@ -186,6 +187,12 @@ git clone https://github.com/Flutter-Dart-loong64/flutter-loong64-releases.git f
 ```bash
 git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git "$DEPOT_TOOLS"
 ```
+
+Loong64 构建还需要目标系统 native `gn` 和 `ninja`。新世界可由
+`generate-ninja` / `ninja-build` 提供；UOS 缺包时在目标系统源码编译 GN。最终要把
+`gn` 和 `ninja` 链接到 Dart SDK 的 `buildtools/gn`、`buildtools/ninja/ninja`，
+以及 Engine 的 `flutter/third_party/gn/gn`、`third_party/ninja/ninja`。完整命令见
+[`VERIFIED_BUILD_ROUTES.md`](VERIFIED_BUILD_ROUTES.md#2-gnninja-准备)。
 
 当前发布构建优先使用 `flutter` fork 中的 `engine/src`，因为它跟 Flutter
 framework 的 `DEPS` revision 对齐。把 engine 内的 Dart SDK 指向本地构建的

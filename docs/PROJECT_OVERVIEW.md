@@ -68,3 +68,5 @@ Debian 13 `loong64` container/QEMU builds are useful for CI and package checks,
 but they do not replace native UOS/deepin hardware validation for engine and
 desktop runtime behavior.
 
+The final verified UOS 25, Debian 13, and UOS 20 build routes are maintained in
+[`VERIFIED_BUILD_ROUTES.md`](VERIFIED_BUILD_ROUTES.md).

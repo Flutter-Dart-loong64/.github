@@ -3,6 +3,10 @@
 UOS 25 and deepin 25 class LoongArch64 systems are the primary native target for
 the new-world `loong64` release line.
 
+For the complete verified source build route, including GN/Ninja provisioning
+and temporary Engine third-party build-tree fixes, see
+[`VERIFIED_BUILD_ROUTES.md`](VERIFIED_BUILD_ROUTES.md#4-uos-25--deepin-25-新世界原生路线).
+
 ## Install SDK
 
 Download the SDK from:
@@ -87,4 +91,3 @@ Recommended checks:
 - a real app bundle run on the desktop session
 - `ldd libflutter_linux_gtk.so | grep fontconfig`
 - `file` and `readelf -l` on `dart`, `gen_snapshot`, and app executables
-

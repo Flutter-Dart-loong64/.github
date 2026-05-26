@@ -1,6 +1,7 @@
 # 中文总览：LoongArch Flutter/Dart 移植说明
 
 本文是 `Flutter-Dart-loong64` 的中文总览，适合第一次了解这个组织的人阅读。
+最终成功路线见 [`VERIFIED_BUILD_ROUTES.md`](VERIFIED_BUILD_ROUTES.md)；
 从零编译、局部环境和变量设置见 [`FROM_ZERO_BUILD.md`](FROM_ZERO_BUILD.md)，
 依赖源码编译步骤见 [`DEPENDENCY_BUILDING.md`](DEPENDENCY_BUILDING.md)。
 
@@ -175,6 +176,8 @@ Flutter cache、engine stamp 和 engine artifacts。
 
 应用仓库里的 `build-loong64-in-container.sh`、`build-linux-bundle.sh`、
 `package-deb.sh` 等脚本是应用验证脚本，不是 Flutter SDK 本体构建脚本。
+UOS 25、UOS 20 和 Debian 13 的最终构建步骤以
+[`VERIFIED_BUILD_ROUTES.md`](VERIFIED_BUILD_ROUTES.md) 为准。
 
 ## 常见问题
 

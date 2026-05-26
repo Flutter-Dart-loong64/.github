@@ -8,6 +8,10 @@
 | Debian 13 `loong64` container/QEMU | CI/package build and repeatable application packaging | `loong64` | Build Loong64 app bundles and `.deb` packages in GitHub Actions or local Docker/QEMU. |
 | UOS 20 old-world LoongArch64 | Old-world SDK and application validation | `loongarch64` | Build/run old-world-compatible Flutter SDK and app packages. |
 
+For command-level build steps, use
+[`VERIFIED_BUILD_ROUTES.md`](VERIFIED_BUILD_ROUTES.md) as the canonical route
+document.
+
 ## New-World
 
 New-world LoongArch systems generally use:
@@ -52,4 +56,3 @@ It is not a complete substitute for:
 - desktop integration validation;
 - old-world ABI validation;
 - performance testing.
-
