@@ -99,7 +99,291 @@ export STRIP=<oldworld-strip>
 unset LD_LIBRARY_PATH
 ```
 
-## 3. Chromium depot_tools / Engine 三方依赖
+## 3. 旧世界 GCC 13.4 + binutils 2.42 工具链
+
+旧世界 UOS 20 的系统 linker 在最终链接 `libflutter_linux_gtk.so` 时曾留下
+不该进入动态链接阶段的 `R_LARCH_B26` 分支重定位，运行时表现为 GTK engine
+初始化卡住、窗口停在空白或 10x10 占位窗口。已验证的修复路线是在旧世界系统上
+使用 GCC 13.4 driver + binutils 2.42 重新链接最终 Engine 共享库。
+
+这套工具链必须在旧世界系统或旧世界 sysroot 上构建。不要在新世界 UOS 25 /
+Debian 13 上构建后复制到 UOS 20 使用。
+
+这条路线主要解决 Engine 最终链接问题。Dart SDK、Flutter tool 和应用仍然要在
+同一套旧世界环境里构建，但不应该把新世界 sysroot 或新世界运行库混进来。
+
+### 3.1 环境变量
+
+```bash
+export WORKSPACE=<workspace>
+export TOOLCHAIN_SRC="$WORKSPACE/toolchain-src"
+export TOOLCHAIN_BUILD="$WORKSPACE/toolchain-build"
+export OLDWORLD_TOOLCHAIN="$WORKSPACE/toolchains/gcc-13.4-binutils-2.42-oldworld"
+export GNU_TRIPLE=loongarch64-unknown-linux-gnu
+
+mkdir -p "$TOOLCHAIN_SRC" "$TOOLCHAIN_BUILD" "$OLDWORLD_TOOLCHAIN"
+```
+
+确认当前机器是旧世界：
+
+```bash
+uname -m
+readelf -l /bin/ls | grep interpreter
+```
+
+期望解释器：
+
+```text
+/lib64/ld.so.1
+```
+
+### 3.2 安装工具链编译依赖
+
+```bash
+sudo apt update
+sudo apt install -y \
+  git curl wget ca-certificates xz-utils bzip2 gzip tar \
+  make gcc g++ file texinfo flex bison gawk \
+  python3 perl patch diffutils \
+  libgmp-dev libmpfr-dev libmpc-dev zlib1g-dev
+```
+
+如果发行版没有 `libgmp-dev`、`libmpfr-dev`、`libmpc-dev`，可让 GCC 源码自带脚本
+下载匹配依赖，见后面的 `contrib/download_prerequisites`。
+
+### 3.3 下载源码
+
+```bash
+cd "$TOOLCHAIN_SRC"
+
+wget https://ftp.gnu.org/gnu/binutils/binutils-2.42.tar.xz
+wget https://ftp.gnu.org/gnu/gcc/gcc-13.4.0/gcc-13.4.0.tar.xz
+
+tar -xf binutils-2.42.tar.xz
+tar -xf gcc-13.4.0.tar.xz
+```
+
+如果系统缺少 GMP/MPFR/MPC 开发包：
+
+```bash
+cd "$TOOLCHAIN_SRC/gcc-13.4.0"
+./contrib/download_prerequisites
+```
+
+### 3.4 编译并安装 binutils 2.42
+
+```bash
+mkdir -p "$TOOLCHAIN_BUILD/binutils-2.42"
+cd "$TOOLCHAIN_BUILD/binutils-2.42"
+
+"$TOOLCHAIN_SRC/binutils-2.42/configure" \
+  --prefix="$OLDWORLD_TOOLCHAIN" \
+  --build="$GNU_TRIPLE" \
+  --host="$GNU_TRIPLE" \
+  --target="$GNU_TRIPLE" \
+  --with-sysroot=/ \
+  --disable-multilib \
+  --disable-werror \
+  --enable-plugins \
+  --enable-ld=default \
+  --enable-gold=no
+
+make -j"$(nproc)"
+make install
+```
+
+旧世界机器内存较小时，把并发数降到 2 或 4：
+
+```bash
+make -j2
+make install
+```
+
+验证安装结果：
+
+```bash
+"$OLDWORLD_TOOLCHAIN/bin/ld" -v
+"$OLDWORLD_TOOLCHAIN/bin/as" --version | head -n 1
+"$OLDWORLD_TOOLCHAIN/bin/objdump" --version | head -n 1
+```
+
+### 3.5 编译并安装 GCC 13.4
+
+GCC 可以完整 bootstrap，也可以为了节省旧世界机器时间使用 `--disable-bootstrap`。
+发布用工具链建议尽量做完整 bootstrap；如果只是为了修复 Engine 最终链接，
+`--disable-bootstrap` 的 native compiler 也能完成验证。
+
+```bash
+mkdir -p "$TOOLCHAIN_BUILD/gcc-13.4.0"
+cd "$TOOLCHAIN_BUILD/gcc-13.4.0"
+
+export PATH="$OLDWORLD_TOOLCHAIN/bin:$PATH"
+
+"$TOOLCHAIN_SRC/gcc-13.4.0/configure" \
+  --prefix="$OLDWORLD_TOOLCHAIN" \
+  --build="$GNU_TRIPLE" \
+  --host="$GNU_TRIPLE" \
+  --target="$GNU_TRIPLE" \
+  --with-sysroot=/ \
+  --with-native-system-header-dir=/usr/include \
+  --with-arch=loongarch64 \
+  --with-abi=lp64d \
+  --disable-multilib \
+  --enable-languages=c,c++ \
+  --enable-shared \
+  --enable-threads=posix \
+  --enable-__cxa_atexit \
+  --enable-libstdcxx-time=yes \
+  --disable-libsanitizer \
+  --disable-werror
+
+make -j"$(nproc)"
+make install
+```
+
+旧世界机器内存较小时：
+
+```bash
+make -j2
+make install
+```
+
+如果机器性能不足，可以在 `configure` 参数里加：
+
+```bash
+--disable-bootstrap
+```
+
+但要在发布记录里写清楚该工具链是否经过 bootstrap。
+
+验证 GCC：
+
+```bash
+"$OLDWORLD_TOOLCHAIN/bin/gcc" -v
+"$OLDWORLD_TOOLCHAIN/bin/g++" -v
+"$OLDWORLD_TOOLCHAIN/bin/gcc" -print-sysroot
+"$OLDWORLD_TOOLCHAIN/bin/gcc" -print-prog-name=ld
+```
+
+### 3.6 smoke test
+
+```bash
+cat > "$WORKSPACE/oldworld-toolchain-smoke.c" <<'EOF'
+#include <stdio.h>
+
+int main(void) {
+  puts("oldworld toolchain ok");
+  return 0;
+}
+EOF
+
+"$OLDWORLD_TOOLCHAIN/bin/gcc" \
+  "$WORKSPACE/oldworld-toolchain-smoke.c" \
+  -o "$WORKSPACE/oldworld-toolchain-smoke"
+
+file "$WORKSPACE/oldworld-toolchain-smoke"
+readelf -l "$WORKSPACE/oldworld-toolchain-smoke" | grep interpreter
+"$WORKSPACE/oldworld-toolchain-smoke"
+```
+
+解释器必须仍然是：
+
+```text
+/lib64/ld.so.1
+```
+
+如果这里出现新世界解释器，说明用了错误 sysroot 或在新世界系统上构建了工具链。
+
+### 3.7 给 Engine 构建使用的变量
+
+```bash
+export OLDWORLD_TOOLCHAIN=<workspace>/toolchains/gcc-13.4-binutils-2.42-oldworld
+export PATH="$OLDWORLD_TOOLCHAIN/bin:$PATH"
+
+export CC="$OLDWORLD_TOOLCHAIN/bin/gcc"
+export CXX="$OLDWORLD_TOOLCHAIN/bin/g++"
+export AR="$OLDWORLD_TOOLCHAIN/bin/ar"
+export NM="$OLDWORLD_TOOLCHAIN/bin/nm"
+export RANLIB="$OLDWORLD_TOOLCHAIN/bin/ranlib"
+export STRIP="$OLDWORLD_TOOLCHAIN/bin/strip"
+export OBJCOPY="$OLDWORLD_TOOLCHAIN/bin/objcopy"
+export OBJDUMP="$OLDWORLD_TOOLCHAIN/bin/objdump"
+unset LD_LIBRARY_PATH
+```
+
+如果此前已经用系统工具链跑过 GN，切换工具链后要重新生成输出目录：
+
+```bash
+cd "$WORKSPACE/flutter/engine/src"
+rm -rf out/linux_release_loong64_gtk_oldworld
+
+python3 ./flutter/tools/gn \
+  --linux \
+  --linux-cpu loong64 \
+  --runtime-mode release \
+  --enable-fontconfig \
+  --no-enable-unittests \
+  --no-goma \
+  --no-clang \
+  --target-sysroot / \
+  --prebuilt-dart-sdk \
+  --target-dir linux_release_loong64_gtk_oldworld \
+  --gn-args='is_qnx=false system_libdir="lib/loongarch64-linux-gnu" skia_use_vulkan=false shell_enable_vulkan=false impeller_enable_vulkan=false test_enable_vulkan=false glfw_vulkan_library=""'
+```
+
+推荐完整重建最终产物：
+
+```bash
+ninja -C out/linux_release_loong64_gtk_oldworld \
+  gen_snapshot \
+  libflutter_linux_gtk.so \
+  libflutter_engine.so \
+  zip_archives/linux-loong64-release/linux-loong64-flutter-gtk.zip \
+  zip_archives/linux-loong64-release/artifacts.zip \
+  zip_archives/linux-loong64/font-subset.zip
+```
+
+如果前面已经完成过大部分编译，只想验证 GCC 13.4 + binutils 2.42 的最终链接，
+也可以在重新跑 GN 后清掉共享库目标再构建：
+
+```bash
+rm -f out/linux_release_loong64_gtk_oldworld/libflutter_linux_gtk.so
+rm -f out/linux_release_loong64_gtk_oldworld/libflutter_engine.so
+ninja -C out/linux_release_loong64_gtk_oldworld \
+  libflutter_linux_gtk.so \
+  libflutter_engine.so
+```
+
+发布包构建仍建议完整跑一次 `gen_snapshot`、Engine `.so` 和 zip artifacts，
+不要只拿局部 relink 结果直接发布。
+
+### 3.8 验证 Engine 链接结果
+
+```bash
+out="$WORKSPACE/flutter/engine/src/out/linux_release_loong64_gtk_oldworld"
+
+file "$out/libflutter_linux_gtk.so" "$out/gen_snapshot"
+ldd "$out/libflutter_linux_gtk.so"
+readelf -l "$out/gen_snapshot" | grep interpreter
+readelf -rW "$out/libflutter_linux_gtk.so" | grep R_LARCH_B26 || true
+readelf -rW "$out/libflutter_engine.so" | grep R_LARCH_B26 || true
+```
+
+期望结果：
+
+- `gen_snapshot` 解释器是 `/lib64/ld.so.1`；
+- `libflutter_linux_gtk.so` 能解析 GTK、fontconfig、OpenGL/X11 依赖；
+- `readelf -rW` 不再输出动态 `R_LARCH_B26`；
+- 真实 Flutter GTK 应用可以显示主窗口，而不是卡在初始化。
+
+如果仍有 `R_LARCH_B26`，先确认：
+
+- `which gcc` 指向 `$OLDWORLD_TOOLCHAIN/bin/gcc`；
+- `"$OLDWORLD_TOOLCHAIN/bin/gcc" -print-prog-name=ld` 指向同一套工具链；
+- GN 输出目录是在切换工具链后重新生成的；
+- 没有设置会指向新世界库的 `LD_LIBRARY_PATH`、`LIBRARY_PATH` 或 `C_INCLUDE_PATH`。
+
+## 4. Chromium depot_tools / Engine 三方依赖
 
 Flutter Engine 构建需要 Chromium 工具链脚本。`depot_tools` 不需要编译，只需要
 拉取并加入 `PATH`：
@@ -125,7 +409,7 @@ gclient runhooks
 
 不要把 `gclient` 拉下来的临时 cache、`.cipd` 用户目录或本地代理信息提交到仓库。
 
-## 4. Dart SDK 作为构建依赖
+## 5. Dart SDK 作为构建依赖
 
 Dart SDK 是 Flutter tool 和 Engine 的核心依赖。Loong64 发布构建必须先构建
 本项目 fork 的 Dart SDK：
@@ -158,7 +442,7 @@ cp -a "$WORKSPACE/dart-sdk/out/ReleaseLOONG64/dart-sdk" \
   "$WORKSPACE/flutter/bin/cache/dart-sdk"
 ```
 
-## 5. Flutter Engine 作为构建依赖
+## 6. Flutter Engine 作为构建依赖
 
 Engine 产物是 Flutter Linux 应用构建和运行的核心依赖。新世界构建：
 
@@ -232,7 +516,7 @@ readelf -l "$out/gen_snapshot" | grep interpreter
 readelf -r "$out/libflutter_linux_gtk.so" | grep R_LARCH_B26 || true
 ```
 
-## 6. Rust 工具链
+## 7. Rust 工具链
 
 新世界 Debian/UOS 通常可使用标准 Rustup：
 
@@ -272,7 +556,7 @@ export CARGO_TARGET_DIR="$WORKSPACE/.cargo-target"
 export CARGO_NET_GIT_FETCH_WITH_CLI=true
 ```
 
-## 7. vcpkg 与多媒体依赖
+## 8. vcpkg 与多媒体依赖
 
 RustDesk 这类大型应用会用到 `libvpx`、`libyuv`、`opus`、`aom`、`ffmpeg` 等
 C/C++ 依赖。先构建本地 vcpkg：
@@ -310,7 +594,7 @@ cd "$WORKSPACE/rustdesk"
 vcpkg 在 LoongArch 上遇到不认识的 triplet 时，需要在 fork 中补 triplet 或用
 项目脚本里的 overlay/patch。不要把 x86_64 vcpkg 产物复制到 LoongArch 使用。
 
-## 8. mozjpeg C 库
+## 9. mozjpeg C 库
 
 `mozjpeg` 是 `mozjpeg-sys` 的底层 C 库。源码构建方式：
 
@@ -340,7 +624,7 @@ printf 'int main(void){return 0;}\n' | cc -x c - -mlasx -c -o "$WORKSPACE/lasx.o
 
 `-mlasx` 不支持时可以只构建 LSX 路径；不能因为没有 LASX 就回退到完全无 SIMD。
 
-## 9. mozjpeg-sys
+## 10. mozjpeg-sys
 
 `mozjpeg-sys` 是 Rust FFI crate，会在 Cargo build script 中编译 vendored
 MozJPEG。LoongArch 支持重点是 `vendor/simd/loongarch` 下的 LSX/LASX 后端和
@@ -374,7 +658,7 @@ undefined symbol: jsimd_idct_ifast
 说明链接到的 mozjpeg/mozjpeg-sys 产物没有完整提供 `jsimd_*` 后端，应该重新
 构建 `mozjpeg-sys` 并确认 RustDesk 的 Cargo 依赖指向本项目 fork。
 
-## 10. mozjpeg-rust
+## 11. mozjpeg-rust
 
 高层 Rust JPEG 封装验证：
 
@@ -395,7 +679,7 @@ mozjpeg-sys = { git = "https://github.com/Flutter-Dart-loong64/mozjpeg-sys.git" 
 
 实际应用仓库建议固定到已验证 commit，而不是浮动分支。
 
-## 11. nix crate
+## 12. nix crate
 
 `nix` crate 用于补齐 LoongArch ioctl/系统常量。构建和测试：
 
@@ -418,7 +702,7 @@ nix = { git = "https://github.com/Flutter-Dart-loong64/nix.git" }
 如果应用锁定了 `nix = 0.23` 或 `0.25`，补丁版本要和应用的 `Cargo.lock`
 匹配，避免因为 semver 变化引入额外行为差异。
 
-## 12. RustDesk 依赖和打包
+## 13. RustDesk 依赖和打包
 
 RustDesk Flutter 版本依赖 Rust、Flutter、vcpkg 和多个 C/C++ 多媒体库。
 新世界构建：
@@ -464,7 +748,7 @@ python3 build.py --flutter --hwcodec
 ```bash
 export FLUTTER_ROOT=<oldworld-flutter-sdk>
 export DEB_ARCH=loongarch64
-export PATH="$FLUTTER_ROOT/bin:$CARGO_HOME/bin:$OLDWORLD_TOOLCHAIN:$PATH"
+export PATH="$FLUTTER_ROOT/bin:$CARGO_HOME/bin:$OLDWORLD_TOOLCHAIN/bin:$PATH"
 unset LD_LIBRARY_PATH
 ```
 
@@ -486,7 +770,7 @@ ldd /usr/share/rustdesk/lib/librustdesk.so
 rustdesk --version || true
 ```
 
-## 13. flutter-linglong-store 依赖和打包
+## 14. flutter-linglong-store 依赖和打包
 
 该仓库用于验证 Flutter SDK、Dart codegen、包架构识别和 Debian 打包。
 
@@ -525,7 +809,7 @@ bash build/scripts/build-loong64-in-container.sh \
 
 如果 generator 报错，应先修应用源码或依赖版本，不应通过跳过 codegen 掩盖问题。
 
-## 14. LocalSend 类 Flutter 应用
+## 15. LocalSend 类 Flutter 应用
 
 普通 Flutter Linux 桌面应用验证流程：
 
@@ -545,7 +829,7 @@ file build/linux/loong64/release/bundle/*
 
 如果应用没有 `build_runner`，该步骤可以跳过；如果有生成代码，必须跑完整生成。
 
-## 15. Debian 13 QEMU 依赖缓存
+## 16. Debian 13 QEMU 依赖缓存
 
 在 CI 或本地 amd64 模拟时，建议缓存：
 
@@ -561,7 +845,7 @@ $WORKSPACE/vcpkg/buildtrees
 但发布包里不能包含这些 cache。发布包只应包含 Flutter SDK、Dart SDK、Engine
 artifacts、license、version/stamp 和校验文件。
 
-## 16. 最终检查清单
+## 17. 最终检查清单
 
 每次依赖升级后至少检查：
 

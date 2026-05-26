@@ -112,6 +112,11 @@ https://github.com/Flutter-Dart-loong64/flutter-loongarch64-releases
 - SHA256 校验；
 - 已验证的重建说明。
 
+旧世界 Engine 最终链接已验证使用过 GCC 13.4 + binutils 2.42，主要用于避免
+UOS 20 系统 linker 在 `libflutter_linux_gtk.so` 中留下动态 `R_LARCH_B26`
+分支重定位。工具链源码编译和环境变量见
+[`DEPENDENCY_BUILDING.md`](DEPENDENCY_BUILDING.md#3-旧世界-gcc-134--binutils-242-工具链)。
+
 旧世界构建原则：
 
 - 不复用 UOS 25 / Debian 13 新世界二进制；

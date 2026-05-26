@@ -29,7 +29,10 @@ readelf -l <binary> | grep interpreter
 
 The old-world SDK must be built on old-world-compatible LoongArch64 tooling.
 The current old-world release repository records a validated path using an
-old-world-capable GCC/binutils pair.
+old-world-capable GCC/binutils pair. The validated final-link toolchain was
+GCC 13.4 with binutils 2.42; source build steps and environment variables are
+documented in
+[`DEPENDENCY_BUILDING.md`](DEPENDENCY_BUILDING.md#3-旧世界-gcc-134--binutils-242-工具链).
 
 Important rules:
 
@@ -59,4 +62,3 @@ patch -p1 < patches/oldworld-loongarch64-engine.patch
 Old-world applications must be built on old-world systems or with an
 old-world-compatible sysroot/toolchain. New-world UOS 25 `.deb` packages are
 not expected to run on UOS 20.
-

@@ -541,7 +541,8 @@ sudo apt install -y \
 
 旧世界最终链接可能需要 old-world-capable GCC/binutils。已验证路线使用过
 GCC 13.4 + binutils 2.42 来避免 `R_LARCH_B26` 残留重定位导致 GTK engine
-初始化卡住。
+初始化卡住。工具链本身的源码下载、编译、安装、wrapper 环境变量和验证步骤见
+[`DEPENDENCY_BUILDING.md`](DEPENDENCY_BUILDING.md#3-旧世界-gcc-134--binutils-242-工具链)。
 
 ### 3.2.1 设置旧世界局部环境
 
@@ -574,6 +575,20 @@ export CXX=<oldworld-g++>
 export AR=<oldworld-ar>
 export NM=<oldworld-nm>
 export STRIP=<oldworld-strip>
+unset LD_LIBRARY_PATH
+```
+
+已验证路线对应：
+
+```bash
+export OLDWORLD_TOOLCHAIN=<workspace>/toolchains/gcc-13.4-binutils-2.42-oldworld
+export PATH="$OLDWORLD_TOOLCHAIN/bin:$PATH"
+export CC="$OLDWORLD_TOOLCHAIN/bin/gcc"
+export CXX="$OLDWORLD_TOOLCHAIN/bin/g++"
+export AR="$OLDWORLD_TOOLCHAIN/bin/ar"
+export NM="$OLDWORLD_TOOLCHAIN/bin/nm"
+export RANLIB="$OLDWORLD_TOOLCHAIN/bin/ranlib"
+export STRIP="$OLDWORLD_TOOLCHAIN/bin/strip"
 unset LD_LIBRARY_PATH
 ```
 
