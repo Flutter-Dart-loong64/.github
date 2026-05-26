@@ -6,7 +6,8 @@
 
 ## 1. 通用本地环境
 
-建议所有源码依赖都放在同一个工作目录内，避免污染系统全局环境：
+建议所有源码依赖都放在同一个工作目录内，避免污染系统全局环境。下面这种写法适合
+CI 或一次性构建：
 
 ```bash
 export WORKSPACE=<workspace>
@@ -24,6 +25,17 @@ export PATH="$CARGO_HOME/bin:$PREFIX/bin:$PATH"
 mkdir -p "$WORKSPACE" "$PREFIX" "$CARGO_HOME" "$RUSTUP_HOME" \
   "$CARGO_TARGET_DIR" "$PUB_CACHE" "$VCPKG_DEFAULT_BINARY_CACHE"
 ```
+
+日常在真实 LoongArch 桌面机器上开发时，Rust 通常不需要重定向到 `WORKSPACE`，
+按 rustup 默认值放在用户目录即可：
+
+```text
+$HOME/.cargo
+$HOME/.rustup
+$HOME/.cargo/bin
+```
+
+也就是不设置 `CARGO_HOME`、`RUSTUP_HOME` 时，rustup 默认会安装到 `~/` 下。
 
 如果需要代理，只在当前 shell 里设置，不要提交到仓库：
 
@@ -524,8 +536,34 @@ readelf -r "$out/libflutter_linux_gtk.so" | grep R_LARCH_B26 || true
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y \
   --default-toolchain stable \
   --profile minimal
-source "$CARGO_HOME/env"
+
+source "$HOME/.cargo/env"
 rustup target add loongarch64-unknown-linux-gnu
+rustc -vV
+cargo -V
+```
+
+上面是正常安装方式，安装目录为：
+
+```text
+$HOME/.cargo/bin/rustc
+$HOME/.cargo/bin/cargo
+$HOME/.rustup/toolchains/
+```
+
+如果 shell 没有自动加载 Cargo 环境，在 `~/.bashrc`、`~/.zshrc` 或当前 shell
+加入：
+
+```bash
+source "$HOME/.cargo/env"
+```
+
+验证：
+
+```bash
+which rustc
+which cargo
+rustup show
 rustc -vV
 cargo -V
 ```
@@ -547,13 +585,27 @@ rustc "$WORKSPACE/rust-smoke.rs" -o "$WORKSPACE/rust-smoke"
 readelf -l "$WORKSPACE/rust-smoke" | grep interpreter
 ```
 
-Cargo 构建建议固定局部 cache：
+如果是在 CI、容器或一次性构建目录里，才建议固定局部 cache：
 
 ```bash
 export CARGO_HOME="$WORKSPACE/.cargo"
 export RUSTUP_HOME="$WORKSPACE/.rustup"
 export CARGO_TARGET_DIR="$WORKSPACE/.cargo-target"
 export CARGO_NET_GIT_FETCH_WITH_CLI=true
+
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y \
+  --default-toolchain stable \
+  --profile minimal
+source "$CARGO_HOME/env"
+```
+
+本地日常构建不要同时混用 `$HOME/.cargo` 和 `$WORKSPACE/.cargo`。如果切换过，
+先执行：
+
+```bash
+unset CARGO_HOME
+unset RUSTUP_HOME
+source "$HOME/.cargo/env"
 ```
 
 ## 8. vcpkg 与多媒体依赖
@@ -713,7 +765,7 @@ git clone --recurse-submodules https://github.com/Flutter-Dart-loong64/rustdesk.
 cd "$WORKSPACE/rustdesk"
 
 export FLUTTER_ROOT=<loong64-flutter-sdk>
-export PATH="$FLUTTER_ROOT/bin:$CARGO_HOME/bin:$PATH"
+export PATH="$FLUTTER_ROOT/bin:${CARGO_HOME:-$HOME/.cargo}/bin:$PATH"
 export VCPKG_ROOT="$WORKSPACE/vcpkg"
 export DEB_ARCH=loong64
 export CARGO_TARGET_DIR="$WORKSPACE/.cargo-target/rustdesk"
@@ -748,7 +800,7 @@ python3 build.py --flutter --hwcodec
 ```bash
 export FLUTTER_ROOT=<oldworld-flutter-sdk>
 export DEB_ARCH=loongarch64
-export PATH="$FLUTTER_ROOT/bin:$CARGO_HOME/bin:$OLDWORLD_TOOLCHAIN/bin:$PATH"
+export PATH="$FLUTTER_ROOT/bin:${CARGO_HOME:-$HOME/.cargo}/bin:$OLDWORLD_TOOLCHAIN/bin:$PATH"
 unset LD_LIBRARY_PATH
 ```
 
