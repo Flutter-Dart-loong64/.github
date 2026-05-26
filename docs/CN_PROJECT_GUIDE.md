@@ -1,9 +1,9 @@
 # 中文总览：LoongArch Flutter/Dart 移植说明
 
 本文是 `Flutter-Dart-loong64` 的中文总览，适合第一次了解这个组织的人阅读。
-最终成功路线见 [`VERIFIED_BUILD_ROUTES.md`](VERIFIED_BUILD_ROUTES.md)；
-从零编译、局部环境和变量设置见 [`FROM_ZERO_BUILD.md`](FROM_ZERO_BUILD.md)，
-依赖源码编译步骤见 [`DEPENDENCY_BUILDING.md`](DEPENDENCY_BUILDING.md)。
+完整构建路线、局部环境和变量设置见
+[`BUILD_ROUTES.md`](BUILD_ROUTES.md)，依赖源码编译步骤见
+[`DEPENDENCY_BUILDING.md`](DEPENDENCY_BUILDING.md)。
 
 ## 项目目的
 
@@ -105,30 +105,10 @@ build/linux/loong64/release/bundle/
 https://github.com/Flutter-Dart-loong64/flutter-loongarch64-releases
 ```
 
-旧世界发布仓库记录：
-
-- old-world engine patch；
-- UOS 20 构建过程；
-- old-world SDK 包；
-- SHA256 校验；
-- 已验证的重建说明。
-
-旧世界 Engine 最终链接已验证使用过 GCC 13.4 + binutils 2.42，主要用于避免
-UOS 20 系统 linker 在 `libflutter_linux_gtk.so` 中留下动态 `R_LARCH_B26`
-分支重定位。工具链源码编译和环境变量见
-[`DEPENDENCY_BUILDING.md`](DEPENDENCY_BUILDING.md#3-旧世界-gcc-134--binutils-242-工具链)。
-
-UOS 20 上的 Rust 依赖建议使用龙芯社区 Rustup 源安装，默认安装到
-`$HOME/.cargo` 和 `$HOME/.rustup`，具体命令见
-[`DEPENDENCY_BUILDING.md`](DEPENDENCY_BUILDING.md#71-uos-20-旧世界龙芯社区-rustup-源)。
-
-旧世界构建原则：
-
-- 不复用 UOS 25 / Debian 13 新世界二进制；
-- `dart`、`gen_snapshot`、`libflutter_linux_gtk.so`、Flutter tool 要保持 revision
-  匹配；
-- engine 需要旧世界兼容补丁；
-- 必须用真实 GTK Flutter 应用验证启动和界面，不只看 `flutter --version`。
+旧世界构建和新世界构建是两条线。UOS 20 路线涉及 old-world engine patch、
+GCC 13.4 + binutils 2.42 final link、Loongnix Rustup 和真实 GTK 应用验证；
+命令统一放在 [`BUILD_ROUTES.md`](BUILD_ROUTES.md) 和
+[`DEPENDENCY_BUILDING.md`](DEPENDENCY_BUILDING.md)。
 
 ## Debian 13 QEMU / CI
 
@@ -157,55 +137,12 @@ Debian 13 `loong64` 容器/QEMU 用于：
 因此 Loong64 CI 脚本需要从 `flutter-loong64-releases` 下载 SDK，并预先填充
 Flutter cache、engine stamp 和 engine artifacts。
 
-## 构建脚本原则
+## 文档分工
 
-源码同步和发布要分开：
-
-- 平时同步 upstream：只 rebase `sdk`、`engine`、`flutter`、`native`；
-- 遇到冲突：跳过对应仓库，不强行发布；
-- 只有明确的 release 事件或人工确认时才构建发布；
-- 上游普通更新不应该自动发布新 SDK 包。
-
-新世界 release 产物通常包括：
-
-- Dart SDK archive；
-- Flutter Engine Linux GTK Loong64 archive；
-- Flutter SDK archive；
-- `SHA256SUMS`；
-- release notes / history。
-
-应用仓库里的 `build-loong64-in-container.sh`、`build-linux-bundle.sh`、
-`package-deb.sh` 等脚本是应用验证脚本，不是 Flutter SDK 本体构建脚本。
-UOS 25、UOS 20 和 Debian 13 的最终构建步骤以
-[`VERIFIED_BUILD_ROUTES.md`](VERIFIED_BUILD_ROUTES.md) 为准。
-
-## 常见问题
-
-### Flutter 尝试去 Google 下载 Loong64 包
-
-说明 SDK cache 没有准备完整。需要使用本项目 release 包，并确认：
-
-- `bin/cache/dart-sdk` 存在；
-- `bin/cache/artifacts/engine/linux-loong64-release` 存在；
-- `engine.stamp` / `engine_stamp.json` 与包内 engine revision 匹配。
-
-### 中文显示方框
-
-优先检查 engine 是否启用了 fontconfig：
-
-```bash
-ldd libflutter_linux_gtk.so | grep fontconfig
-fc-match sans
-```
-
-构建 engine 时应保留 `--enable-fontconfig`。
-
-### `gen_snapshot` 或 AOT 失败
-
-通常是 Dart frontend、`gen_snapshot`、engine artifact revision 不一致。需要
-重新构建并确保这些文件来自同一套 Dart/engine revision。
-
-### 新世界包在旧世界不能运行
-
-这是预期情况。新世界和旧世界 ABI 不兼容。请使用
-`flutter-loongarch64-releases` 的旧世界 SDK 和旧世界应用包。
+- 命令级构建步骤：[`BUILD_ROUTES.md`](BUILD_ROUTES.md)
+- 依赖源码编译：[`DEPENDENCY_BUILDING.md`](DEPENDENCY_BUILDING.md)
+- 仓库关系：[`REPOSITORIES.md`](REPOSITORIES.md)
+- 平台差异：[`PLATFORM_MATRIX.md`](PLATFORM_MATRIX.md)
+- 自动化脚本原则：[`BUILD_AND_RELEASE_SCRIPTS.md`](BUILD_AND_RELEASE_SCRIPTS.md)
+- 应用验证：[`APPLICATION_VALIDATION.md`](APPLICATION_VALIDATION.md)
+- 常见问题：[`TROUBLESHOOTING.md`](TROUBLESHOOTING.md)

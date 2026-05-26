@@ -9,7 +9,7 @@
 | UOS 20 old-world LoongArch64 | Old-world SDK and application validation | `loongarch64` | Build/run old-world-compatible Flutter SDK and app packages. |
 
 For command-level build steps, use
-[`VERIFIED_BUILD_ROUTES.md`](VERIFIED_BUILD_ROUTES.md) as the canonical route
+[`BUILD_ROUTES.md`](BUILD_ROUTES.md) as the canonical route
 document.
 
 ## New-World

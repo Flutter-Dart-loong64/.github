@@ -7,7 +7,7 @@ current commands.
 Source-build steps for Rust/Cargo/vcpkg/mozjpeg/nix/application dependencies
 are documented in [`DEPENDENCY_BUILDING.md`](DEPENDENCY_BUILDING.md).
 The final verified UOS 25, UOS 20, and Debian 13 build routes are documented in
-[`VERIFIED_BUILD_ROUTES.md`](VERIFIED_BUILD_ROUTES.md).
+[`BUILD_ROUTES.md`](BUILD_ROUTES.md).
 
 ## Source Sync Automation
 

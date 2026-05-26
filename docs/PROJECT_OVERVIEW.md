@@ -69,4 +69,4 @@ but they do not replace native UOS/deepin hardware validation for engine and
 desktop runtime behavior.
 
 The final verified UOS 25, Debian 13, and UOS 20 build routes are maintained in
-[`VERIFIED_BUILD_ROUTES.md`](VERIFIED_BUILD_ROUTES.md).
+[`BUILD_ROUTES.md`](BUILD_ROUTES.md).

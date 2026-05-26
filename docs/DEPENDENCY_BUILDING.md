@@ -479,114 +479,10 @@ gclient runhooks
 
 不要把 `gclient` 拉下来的临时 cache、`.cipd` 用户目录或本地代理信息提交到仓库。
 
-## 5. Dart SDK 作为构建依赖
+Dart SDK 和 Flutter Engine 的完整构建步骤不在本文重复维护，统一见
+[`BUILD_ROUTES.md`](BUILD_ROUTES.md)。
 
-Dart SDK 是 Flutter tool 和 Engine 的核心依赖。Loong64 发布构建必须先构建
-本项目 fork 的 Dart SDK：
-
-```bash
-git clone https://github.com/Flutter-Dart-loong64/sdk.git "$WORKSPACE/dart-sdk"
-cd "$WORKSPACE/dart-sdk"
-
-./tools/build.py \
-  -m release \
-  -a loong64 \
-  --gn-args="use_sysroot=false" \
-  create_sdk dartaotruntime gen_snapshot analyze_snapshot
-```
-
-验证：
-
-```bash
-"$WORKSPACE/dart-sdk/out/ReleaseLOONG64/dart-sdk/bin/dart" --version
-"$WORKSPACE/dart-sdk/out/ReleaseLOONG64/gen_snapshot" --version
-file "$WORKSPACE/dart-sdk/out/ReleaseLOONG64/dart-sdk/bin/dart"
-```
-
-复制到 Flutter cache：
-
-```bash
-rm -rf "$WORKSPACE/flutter/bin/cache/dart-sdk"
-mkdir -p "$WORKSPACE/flutter/bin/cache"
-cp -a "$WORKSPACE/dart-sdk/out/ReleaseLOONG64/dart-sdk" \
-  "$WORKSPACE/flutter/bin/cache/dart-sdk"
-```
-
-## 6. Flutter Engine 作为构建依赖
-
-Engine 产物是 Flutter Linux 应用构建和运行的核心依赖。新世界构建：
-
-```bash
-cd "$WORKSPACE/flutter/engine/src"
-dart_commit="$(git -C "$WORKSPACE/dart-sdk" rev-parse HEAD)"
-
-./flutter/tools/gn \
-  --linux \
-  --linux-cpu loong64 \
-  --runtime-mode release \
-  --enable-fontconfig \
-  --no-enable-unittests \
-  --no-goma \
-  --target-sysroot / \
-  --prebuilt-dart-sdk \
-  --target-dir linux_release_loong64_gtk \
-  --gn-args="content_hash=\"$dart_commit\" system_libdir=\"lib/loongarch64-linux-gnu\" skia_use_vulkan=false shell_enable_vulkan=false impeller_enable_vulkan=false test_enable_vulkan=false"
-
-ninja -C out/linux_release_loong64_gtk \
-  libflutter_linux_gtk.so \
-  gen_snapshot \
-  font-subset \
-  flutter_patched_sdk \
-  sky_engine \
-  const_finder
-```
-
-旧世界构建在应用旧世界补丁后使用 `--no-clang` 和旧世界输出目录：
-
-```bash
-cd "$WORKSPACE/flutter/engine/src"
-patch -p1 < "$WORKSPACE/flutter-loongarch64-releases/patches/oldworld-loongarch64-engine.patch"
-
-python3 ./flutter/tools/gn \
-  --linux \
-  --linux-cpu loong64 \
-  --runtime-mode release \
-  --enable-fontconfig \
-  --no-enable-unittests \
-  --no-goma \
-  --no-clang \
-  --target-sysroot / \
-  --prebuilt-dart-sdk \
-  --target-dir linux_release_loong64_gtk_oldworld \
-  --gn-args='is_qnx=false system_libdir="lib/loongarch64-linux-gnu" skia_use_vulkan=false shell_enable_vulkan=false impeller_enable_vulkan=false test_enable_vulkan=false glfw_vulkan_library=""'
-
-ninja -C out/linux_release_loong64_gtk_oldworld \
-  gen_snapshot \
-  libflutter_linux_gtk.so \
-  libflutter_engine.so \
-  zip_archives/linux-loong64-release/linux-loong64-flutter-gtk.zip \
-  zip_archives/linux-loong64-release/artifacts.zip \
-  zip_archives/linux-loong64/font-subset.zip
-```
-
-验证：
-
-```bash
-out="$WORKSPACE/flutter/engine/src/out/linux_release_loong64_gtk"
-file "$out/libflutter_linux_gtk.so" "$out/gen_snapshot"
-ldd "$out/libflutter_linux_gtk.so" | grep fontconfig
-"$out/gen_snapshot" --version
-```
-
-旧世界还要确认解释器：
-
-```bash
-out="$WORKSPACE/flutter/engine/src/out/linux_release_loong64_gtk_oldworld"
-readelf -l "$out/gen_snapshot" | grep interpreter
-readelf -r "$out/libflutter_linux_gtk.so" | grep R_LARCH_B26 || true
-```
-
-## 7. Rust 工具链
+## 5. Rust 工具链
 
 新世界 Debian/UOS 通常可使用标准 Rustup：
 
@@ -626,7 +522,7 @@ rustc -vV
 cargo -V
 ```
 
-### 7.1 UOS 20 旧世界：龙芯社区 Rustup 源
+### 5.1 UOS 20 旧世界：龙芯社区 Rustup 源
 
 UOS 20 旧世界优先使用龙芯开源社区维护的 Rustup 源。该源面向 LoongArch ABI 1.0
 运行环境，更适合旧世界 `loongarch64` 系统。
@@ -718,7 +614,7 @@ readelf -l "$WORKSPACE/rust-smoke" | grep interpreter
 如果 smoke binary 变成新世界解释器，说明 Rust 工具链或系统环境不适合 UOS 20
 旧世界构建，不能拿来打包旧世界应用。
 
-### 7.2 CI/容器内 Rust cache
+### 5.2 CI/容器内 Rust cache
 
 如果是在 CI、容器或一次性构建目录里，才建议固定局部 cache：
 
@@ -743,7 +639,7 @@ unset RUSTUP_HOME
 source "$HOME/.cargo/env"
 ```
 
-## 8. vcpkg 与多媒体依赖
+## 6. vcpkg 与多媒体依赖
 
 RustDesk 这类大型应用会用到 `libvpx`、`libyuv`、`opus`、`aom`、`ffmpeg` 等
 C/C++ 依赖。先构建本地 vcpkg：
@@ -781,7 +677,7 @@ cd "$WORKSPACE/rustdesk"
 vcpkg 在 LoongArch 上遇到不认识的 triplet 时，需要在 fork 中补 triplet 或用
 项目脚本里的 overlay/patch。不要把 x86_64 vcpkg 产物复制到 LoongArch 使用。
 
-## 9. mozjpeg C 库
+## 7. mozjpeg C 库
 
 `mozjpeg` 是 `mozjpeg-sys` 的底层 C 库。源码构建方式：
 
@@ -811,7 +707,7 @@ printf 'int main(void){return 0;}\n' | cc -x c - -mlasx -c -o "$WORKSPACE/lasx.o
 
 `-mlasx` 不支持时可以只构建 LSX 路径；不能因为没有 LASX 就回退到完全无 SIMD。
 
-## 10. mozjpeg-sys
+## 8. mozjpeg-sys
 
 `mozjpeg-sys` 是 Rust FFI crate，会在 Cargo build script 中编译 vendored
 MozJPEG。LoongArch 支持重点是 `vendor/simd/loongarch` 下的 LSX/LASX 后端和
@@ -845,7 +741,7 @@ undefined symbol: jsimd_idct_ifast
 说明链接到的 mozjpeg/mozjpeg-sys 产物没有完整提供 `jsimd_*` 后端，应该重新
 构建 `mozjpeg-sys` 并确认 RustDesk 的 Cargo 依赖指向本项目 fork。
 
-## 11. mozjpeg-rust
+## 9. mozjpeg-rust
 
 高层 Rust JPEG 封装验证：
 
@@ -866,7 +762,7 @@ mozjpeg-sys = { git = "https://github.com/Flutter-Dart-loong64/mozjpeg-sys.git" 
 
 实际应用仓库建议固定到已验证 commit，而不是浮动分支。
 
-## 12. nix crate
+## 10. nix crate
 
 `nix` crate 用于补齐 LoongArch ioctl/系统常量。构建和测试：
 
@@ -889,7 +785,7 @@ nix = { git = "https://github.com/Flutter-Dart-loong64/nix.git" }
 如果应用锁定了 `nix = 0.23` 或 `0.25`，补丁版本要和应用的 `Cargo.lock`
 匹配，避免因为 semver 变化引入额外行为差异。
 
-## 13. RustDesk 依赖和打包
+## 11. RustDesk 依赖和打包
 
 RustDesk Flutter 版本依赖 Rust、Flutter、vcpkg 和多个 C/C++ 多媒体库。
 新世界构建：
@@ -957,7 +853,7 @@ ldd /usr/share/rustdesk/lib/librustdesk.so
 rustdesk --version || true
 ```
 
-## 14. flutter-linglong-store 依赖和打包
+## 12. flutter-linglong-store 依赖和打包
 
 该仓库用于验证 Flutter SDK、Dart codegen、包架构识别和 Debian 打包。
 
@@ -996,7 +892,7 @@ bash build/scripts/build-loong64-in-container.sh \
 
 如果 generator 报错，应先修应用源码或依赖版本，不应通过跳过 codegen 掩盖问题。
 
-## 15. LocalSend 类 Flutter 应用
+## 13. LocalSend 类 Flutter 应用
 
 普通 Flutter Linux 桌面应用验证流程：
 
@@ -1016,7 +912,7 @@ file build/linux/loong64/release/bundle/*
 
 如果应用没有 `build_runner`，该步骤可以跳过；如果有生成代码，必须跑完整生成。
 
-## 16. Debian 13 QEMU 依赖缓存
+## 14. Debian 13 QEMU 依赖缓存
 
 在 CI 或本地 amd64 模拟时，建议缓存：
 
@@ -1032,7 +928,7 @@ $WORKSPACE/vcpkg/buildtrees
 但发布包里不能包含这些 cache。发布包只应包含 Flutter SDK、Dart SDK、Engine
 artifacts、license、version/stamp 和校验文件。
 
-## 17. 最终检查清单
+## 15. 最终检查清单
 
 每次依赖升级后至少检查：
 
