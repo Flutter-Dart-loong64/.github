@@ -1,7 +1,7 @@
 # LoongArch Flutter 构建路线
 
-本文只记录已经走通并用于发布或应用打包的最终路线。中途排错、失败尝试、个人机器
-路径、远程账号、密码、内网地址和代理订阅都不写入公开文档。
+本文记录 UOS 25、Debian 13 和 UOS 20 上已经走通的 Flutter/Dart LoongArch
+构建路线，用于源码构建、发布打包和应用验证。
 
 示例命令统一使用占位符：
 
@@ -10,8 +10,7 @@ export WORKSPACE=<workspace>
 export RELEASE_ID=<release-version>
 ```
 
-`<workspace>` 是构建工作目录。真实构建时通常把源码、工具、cache、产物都放在这个
-目录下面，但不要把个人目录写死到仓库脚本或文档里。
+`<workspace>` 是构建工作目录。源码、工具、cache 和产物都放在这个目录下。
 
 ## 1. 三条最终路线
 
@@ -250,8 +249,7 @@ python3 "$DEPOT_TOOLS/gclient.py" sync -D --no-history --nohooks \
 
 ### 4.4 构建期源码树修补
 
-以下是最终成功路线中保留的构建树修补。它们只作用于本次 Engine 三方依赖构建树，
-不要写入 SDK 发布包里的个人临时文件。
+以下是最终成功路线中保留的构建树修补。它们只作用于本次 Engine 三方依赖构建树。
 
 1. BoringSSL 识别 LoongArch64 CPU，否则会报 `Unknown target CPU`：
 
@@ -555,8 +553,7 @@ cp -a "$DART_ROOT/out/ReleaseLOONG64/dart-sdk" \
   "$FLUTTER_ROOT/bin/cache/dart-sdk"
 ```
 
-旧世界路线中最终使用过“干净 Engine 源码树 + 复用已同步 third_party”的整理方式。
-公开文档用占位目录表达：
+旧世界路线中最终使用过“干净 Engine 源码树 + 复用已同步 third_party”的整理方式：
 
 ```bash
 export ENGINE_WORK=<engine-work-src>

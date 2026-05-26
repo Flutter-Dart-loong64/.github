@@ -1,8 +1,7 @@
 # 依赖源码编译说明
 
 本文记录 LoongArch Flutter/Dart 移植过程中常用依赖的源码编译方法。命令使用
-`<workspace>`、`<install-prefix>`、`<release-version>` 这类占位符，不包含个人
-机器路径、账号、密码、内网地址或代理订阅。
+`<workspace>`、`<install-prefix>`、`<release-version>` 这类占位符。
 
 ## 1. 通用本地环境
 
@@ -36,14 +35,6 @@ $HOME/.cargo/bin
 ```
 
 也就是不设置 `CARGO_HOME`、`RUSTUP_HOME` 时，rustup 默认会安装到 `~/` 下。
-
-如果需要代理，只在当前 shell 里设置，不要提交到仓库：
-
-```bash
-export http_proxy=<proxy-url>
-export https_proxy=<proxy-url>
-export no_proxy=localhost,127.0.0.1
-```
 
 架构名约定：
 
@@ -476,8 +467,6 @@ gclient config https://github.com/Flutter-Dart-loong64/engine.git
 gclient sync --no-history --shallow
 gclient runhooks
 ```
-
-不要把 `gclient` 拉下来的临时 cache、`.cipd` 用户目录或本地代理信息提交到仓库。
 
 Dart SDK 和 Flutter Engine 的完整构建步骤不在本文重复维护，统一见
 [`BUILD_ROUTES.md`](BUILD_ROUTES.md)。
