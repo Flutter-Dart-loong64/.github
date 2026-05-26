@@ -117,6 +117,10 @@ UOS 20 系统 linker 在 `libflutter_linux_gtk.so` 中留下动态 `R_LARCH_B26`
 分支重定位。工具链源码编译和环境变量见
 [`DEPENDENCY_BUILDING.md`](DEPENDENCY_BUILDING.md#3-旧世界-gcc-134--binutils-242-工具链)。
 
+UOS 20 上的 Rust 依赖建议使用龙芯社区 Rustup 源安装，默认安装到
+`$HOME/.cargo` 和 `$HOME/.rustup`，具体命令见
+[`DEPENDENCY_BUILDING.md`](DEPENDENCY_BUILDING.md#71-uos-20-旧世界龙芯社区-rustup-源)。
+
 旧世界构建原则：
 
 - 不复用 UOS 25 / Debian 13 新世界二进制；

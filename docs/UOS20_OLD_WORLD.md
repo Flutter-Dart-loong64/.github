@@ -34,6 +34,21 @@ GCC 13.4 with binutils 2.42; source build steps and environment variables are
 documented in
 [`DEPENDENCY_BUILDING.md`](DEPENDENCY_BUILDING.md#3-旧世界-gcc-134--binutils-242-工具链).
 
+Rust dependencies on UOS 20 should use the Loongnix/Loongson community Rustup
+source for LoongArch ABI 1.0:
+
+```bash
+curl --proto '=https' --tlsv1.2 -sSf https://rust-lang.loongnix.cn/rustup-init.sh | sh
+source "$HOME/.cargo/env"
+rustup show
+rustc -vV
+cargo -V
+```
+
+This installs into the normal rustup user directories under `$HOME/.cargo` and
+`$HOME/.rustup`. More details are in
+[`DEPENDENCY_BUILDING.md`](DEPENDENCY_BUILDING.md#71-uos-20-旧世界龙芯社区-rustup-源).
+
 Important rules:
 
 - Do not reuse new-world `libflutter_linux_gtk.so`, `gen_snapshot`, or `dart`.

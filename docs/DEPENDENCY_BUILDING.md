@@ -568,8 +568,74 @@ rustc -vV
 cargo -V
 ```
 
-旧世界优先使用龙芯/Loongnix 提供的 Rust 工具链或 rustup 安装方式，并确认生成的
-可执行文件使用旧世界动态链接器：
+### 7.1 UOS 20 旧世界：龙芯社区 Rustup 源
+
+UOS 20 旧世界优先使用龙芯开源社区维护的 Rustup 源。该源面向 LoongArch ABI 1.0
+运行环境，更适合旧世界 `loongarch64` 系统。
+
+参考文档：
+
+```text
+https://docs.loongnix.cn/rust/rustup.html
+https://docs.loongnix.cn/rust/crates.html
+```
+
+正常安装命令：
+
+```bash
+curl --proto '=https' --tlsv1.2 -sSf https://rust-lang.loongnix.cn/rustup-init.sh | sh
+source "$HOME/.cargo/env"
+
+rustup show
+rustc -vV
+cargo -V
+```
+
+安装目录保持 rustup 默认值：
+
+```text
+$HOME/.cargo
+$HOME/.rustup
+$HOME/.cargo/bin
+```
+
+如果 shell 没有自动加载 Cargo 环境，把下面一行加入 `~/.bashrc` 或 `~/.zshrc`：
+
+```bash
+source "$HOME/.cargo/env"
+```
+
+确认 `rustc` 和 `cargo` 来自用户目录：
+
+```bash
+which rustc
+which cargo
+```
+
+期望路径类似：
+
+```text
+$HOME/.cargo/bin/rustc
+$HOME/.cargo/bin/cargo
+```
+
+龙芯 Crates 源说明：
+
+- Rust 1.63 及之后通常不需要额外配置；
+- Rust 1.62 及之前如需使用龙芯 Crates 源，可在项目的 `.cargo/config` 写入：
+
+```toml
+[source.crates-io]
+replace-with = 'loongnix'
+
+[source.loongnix]
+registry = "https://crates.loongnix.cn/crates.io-index"
+```
+
+如果项目已有 `Cargo.lock`，切换 registry 前先备份并确认依赖解析结果，避免把
+应用锁文件改出不必要的大范围变更。
+
+UOS 20 安装后必须确认生成的可执行文件仍使用旧世界动态链接器：
 
 ```bash
 rustc -vV
@@ -584,6 +650,17 @@ EOF
 rustc "$WORKSPACE/rust-smoke.rs" -o "$WORKSPACE/rust-smoke"
 readelf -l "$WORKSPACE/rust-smoke" | grep interpreter
 ```
+
+期望解释器：
+
+```text
+/lib64/ld.so.1
+```
+
+如果 smoke binary 变成新世界解释器，说明 Rust 工具链或系统环境不适合 UOS 20
+旧世界构建，不能拿来打包旧世界应用。
+
+### 7.2 CI/容器内 Rust cache
 
 如果是在 CI、容器或一次性构建目录里，才建议固定局部 cache：
 
